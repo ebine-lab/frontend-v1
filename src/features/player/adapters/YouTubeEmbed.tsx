@@ -9,12 +9,19 @@
 // ============================================================
 
 import { useCallback, useEffect, useRef } from "react";
+import type {} from "youtube";
 import type { SlotId } from "../stores/playerStore";
 import { usePlayerStore } from "../stores/playerStore";
 
 // ----------------------------------------------------------
 // YouTube IFrame API ローダー（モジュールレベル・シングルトン）
 // ----------------------------------------------------------
+
+declare global {
+  interface Window {
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
 
 let apiPromise: Promise<void> | null = null;
 
@@ -152,7 +159,7 @@ export const YouTubeEmbed: React.FunctionComponent<YouTubeEmbedProps> = ({
 
       containerRef.current.appendChild(iframe);
 
-      player = new YT.Player(iframe, {
+      player = new window.YT.Player(iframe, {
         events: {
           onReady: (): void => {
             if (!mountedRef.current) return;
@@ -197,7 +204,7 @@ export const YouTubeEmbed: React.FunctionComponent<YouTubeEmbedProps> = ({
       sourceRef.current = "player";
 
       switch (state) {
-        case YT.PlayerState.PLAYING: {
+        case window.YT.PlayerState.PLAYING: {
           store.setStatus(slotId, "playing");
           // duration を取得して Track に反映
           if (player) {
@@ -213,15 +220,15 @@ export const YouTubeEmbed: React.FunctionComponent<YouTubeEmbedProps> = ({
           startTimeUpdate();
           break;
         }
-        case YT.PlayerState.PAUSED:
+        case window.YT.PlayerState.PAUSED:
           store.setStatus(slotId, "paused");
           stopTimeUpdate();
           break;
-        case YT.PlayerState.ENDED:
+        case window.YT.PlayerState.ENDED:
           store.setStatus(slotId, "ended");
           stopTimeUpdate();
           break;
-        case YT.PlayerState.BUFFERING:
+        case window.YT.PlayerState.BUFFERING:
           store.setStatus(slotId, "loading");
           break;
         default:

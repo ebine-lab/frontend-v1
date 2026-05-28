@@ -54,6 +54,7 @@
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/youtube": "^0.2.0",
     "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "axnospaint-for-aimg": "github:nijiurachan/axnospaint-for-aimg#905abd0ab97cef8ef9c14ada6e5bef126352b999",
