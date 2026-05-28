@@ -118,26 +118,41 @@ export const YouTubeEmbed: React.FunctionComponent<YouTubeEmbedProps> = ({
       // containerRef は YouTubeEmbed 自身の div なので React の管理外。
       containerRef.current.innerHTML = "";
 
-      const innerDiv = document.createElement("div");
-      containerRef.current.appendChild(innerDiv);
-
       const initialVideoId = videoIdRef.current;
       loadedVideoIdRef.current = initialVideoId;
 
-      player = new YT.Player(innerDiv, {
-        videoId: initialVideoId,
-        width: "100%",
-        height: "100%",
-        // OGP埋め込みと同じ nocookie ドメインに揃える。
-        // 一部動画が youtube.com 既定ドメインだと iOS でロード失敗するため。
-        host: "https://www.youtube-nocookie.com",
-        playerVars: {
-          autoplay: 1,
-          playsinline: 1,
-          rel: 0,
-          iv_load_policy: 3,
-          origin: window.location.origin,
-        },
+      // iframe を自前生成して属性を完全制御する。
+      // - referrerpolicy を strict-origin-when-cross-origin に明示
+      //   （iOS 26.5 等で referrer が落ち、YouTube が埋め込み元オリジンを
+      //    検証できず error 153 が出る環境への対処）
+      // - allow / allowfullscreen も明示し OgpCard 側と揃える
+      // YT.Player は src に enablejsapi=1 が付いた既存 iframe を受け取れる。
+      // 渡した場合 playerVars/host/videoId は URL 側が優先され、options は無視される。
+      const iframe = document.createElement("iframe");
+      iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+      iframe.setAttribute(
+        "allow",
+        "autoplay; encrypted-media; picture-in-picture",
+      );
+      iframe.setAttribute("allowfullscreen", "");
+      iframe.setAttribute("title", "YouTube video player");
+      iframe.style.width = "100%";
+      iframe.style.height = "100%";
+      iframe.style.border = "0";
+
+      const params = new URLSearchParams({
+        enablejsapi: "1",
+        autoplay: "1",
+        playsinline: "1",
+        rel: "0",
+        iv_load_policy: "3",
+        origin: window.location.origin,
+      });
+      iframe.src = `https://www.youtube-nocookie.com/embed/${initialVideoId}?${params.toString()}`;
+
+      containerRef.current.appendChild(iframe);
+
+      player = new YT.Player(iframe, {
         events: {
           onReady: (): void => {
             if (!mountedRef.current) return;

@@ -66,7 +66,7 @@ export const OgpCard: React.FunctionComponent<Props> = ({ ogp }: Props) => {
             // 2. クエリパラメータに origin を追加
             src={`https://www.youtube-nocookie.com/embed/${youtubeId}?origin=${currentOrigin}&enablejsapi=1`}
             title={ogpMetadata?.title || "YouTube video"}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="autoplay; encrypted-media; picture-in-picture"
             allowFullScreen
             className="w-full h-full"
             referrerPolicy="strict-origin-when-cross-origin"
