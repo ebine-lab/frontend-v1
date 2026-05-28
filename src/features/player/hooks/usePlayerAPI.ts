@@ -63,6 +63,20 @@ const getStore = (): ReturnType<typeof usePlayerStore.getState> =>
 // オプション型
 // ----------------------------------------------------------
 
+/**
+ * 連続再生（playlist）対応 provider のみを抽出した型。
+ *  - youtube  : 同一 iframe + loadVideoById で次曲遷移
+ *  - internal : 同一 <video> + src 差し替えで次曲遷移
+ * 他の provider（nicovideo / twitch / external_audio 等）は
+ * 同一要素を保持したまま次曲遷移する手段がないため除外する。
+ */
+export type PlaylistProvider = Extract<Provider, "youtube" | "internal">;
+
+/** 指定 provider が連続再生に対応しているか */
+export function isPlaylistProvider(p: Provider | null): p is PlaylistProvider {
+  return p === "youtube" || p === "internal";
+}
+
 export interface PlayOptions {
   subMode?: PlayModeSub;
   label?: string;
@@ -77,7 +91,7 @@ export interface PlayListOptions extends PlayOptions {
    * 同一プレイヤー要素で次曲遷移するため）。
    * デフォルトは "youtube"（後方互換）。
    */
-  playlistProvider?: Provider;
+  playlistProvider?: PlaylistProvider;
 }
 
 // ----------------------------------------------------------

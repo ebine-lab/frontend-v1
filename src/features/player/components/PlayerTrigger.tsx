@@ -12,7 +12,7 @@
 
 import { useEffect, useMemo } from "react";
 import { MdFormatListBulleted, MdPictureInPicture } from "react-icons/md";
-import { usePlayerAPI } from "../hooks/usePlayerAPI";
+import { isPlaylistProvider, usePlayerAPI } from "../hooks/usePlayerAPI";
 import { usePlayerStore } from "../stores/playerStore";
 import { analyzeUrl } from "../utils/providerDetect";
 
@@ -54,11 +54,10 @@ export const PlayerTrigger: React.FunctionComponent<PlayerTriggerProps> = ({
   const analysis = useMemo(() => analyzeUrl(url), [url]);
   const { provider, providerId, isLive, hasDouji } = analysis;
   const isPlayable = provider !== null && providerId !== null;
-  // 連続再生対応プロバイダー:
-  //  - youtube  : 同一 iframe + loadVideoById で次曲遷移
-  //  - internal : 同一 <video> + src 差し替えで次曲遷移（iOS は要 user-gesture 活性化）
-  // 連続再生は同一 provider 内でのみ可（プレイヤー要素を再マウントせず使い回すため）
-  const canPlaylist = provider === "youtube" || provider === "internal";
+  // 連続再生対応プロバイダー判定（型ガードで playlistProvider にも narrow される）
+  const canPlaylist = isPlaylistProvider(provider);
+  // canPlaylist === true のときの provider（型を絞ったまま callsite に渡す）
+  const playlistProvider = canPlaylist ? provider : undefined;
 
   // threadId は number で受け取るが、ストアのキーは string
   const threadIdStr = String(threadId);
@@ -132,13 +131,13 @@ export const PlayerTrigger: React.FunctionComponent<PlayerTriggerProps> = ({
       onToggleChecked={(): void => toggleMediaChecked(threadIdStr, url)}
       onPlaySingle={(): void => play(url, threadIdStr)}
       onPlayPlaylist={(): void =>
-        playChecked(threadIdStr, { playlistProvider: provider ?? undefined })
+        playChecked(threadIdStr, { playlistProvider })
       }
       onPlaySingleSync={(): void => play(url, threadIdStr, { subMode: "sync" })}
       onPlayPlaylistSync={(): void =>
         playChecked(threadIdStr, {
           subMode: "sync",
-          playlistProvider: provider ?? undefined,
+          playlistProvider,
         })
       }
     />
