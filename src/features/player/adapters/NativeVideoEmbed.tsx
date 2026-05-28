@@ -31,6 +31,10 @@ export const NativeVideoEmbed: React.FunctionComponent<
 > = ({ providerId, slotId, onFullControlChange }: NativeVideoEmbedProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const sourceRef = useRef<"store" | "player" | null>(null);
+  // iOS の user gesture 活性化を「この <video> 要素で一度でも play した」フラグで
+  // 追跡。初回はユーザータップ必須だが、活性化後は src 差し替え + canplay 自動再生で
+  // 連続再生（埋め込み動画 playlist モード）の次曲遷移が iOS Safari でも通る。
+  const activatedRef = useRef(false);
 
   // video 要素の実際の再生状態に直結するローカル state。
   // ストアの status ではなくこちらでオーバーレイ表示を制御することで、
@@ -64,16 +68,21 @@ export const NativeVideoEmbed: React.FunctionComponent<
       const st = getStore().players[slotId].status;
       if (st !== "loading") return;
 
-      if (!isIOS) {
-        // 非 iOS: programmatic play() を試行して自動再生
+      // 非iOS は常に programmatic play() を試行。
+      // iOS は初回のみユーザータップ待ち。活性化後（activatedRef = true）は
+      // src 差し替え後でも programmatic play() が通る（user gesture が要素単位で保持される）
+      // ため、連続再生の次曲遷移が自動で進む。
+      if (!isIOS || activatedRef.current) {
         video.play().catch(() => getStore().setStatus(slotId, "paused"));
       } else {
-        // iOS: ユーザータップ待ち
         getStore().setStatus(slotId, "paused");
       }
     };
 
     const handlePlay = (): void => {
+      // 初回 play イベントで活性化済みとマーク。
+      // 以降の canplay は iOS でも自動再生を試みる。
+      activatedRef.current = true;
       setIsPlaying(true);
       if (sourceRef.current === "store") {
         sourceRef.current = null;

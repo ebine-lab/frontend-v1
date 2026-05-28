@@ -71,6 +71,13 @@ export interface PlayOptions {
 
 export interface PlayListOptions extends PlayOptions {
   startIndex?: number;
+  /**
+   * プレイリスト対象 provider。指定 provider のトラックだけを抽出して
+   * プレイリスト化する。連続再生は同一 provider 内に限定（再マウントせず
+   * 同一プレイヤー要素で次曲遷移するため）。
+   * デフォルトは "youtube"（後方互換）。
+   */
+  playlistProvider?: Provider;
 }
 
 // ----------------------------------------------------------
@@ -287,18 +294,27 @@ export function usePlayerAPI(): PlayerAPI {
       threadId: string,
       options: PlayListOptions = {},
     ): void => {
-      // 連続再生は YouTube のみ対応（登録段階で絞っているが二重の安全網）
+      const {
+        subMode = "none",
+        startIndex = 0,
+        slotId = "primary",
+        playlistProvider = "youtube",
+      } = options;
+      // 連続再生は同一 provider 内に限定（同一プレイヤー要素を保持して src だけ
+      // 差し替える方式のため）。登録段階で絞っているが二重の安全網。
       const tracks = urls
         .map(urlToTrack)
-        .filter((t): t is Track => t !== null && t.provider === "youtube");
+        .filter(
+          (t): t is Track => t !== null && t.provider === playlistProvider,
+        );
       if (tracks.length === 0) return;
 
       const origin = buildOrigin(threadId, location.pathname, options.label);
-      const { subMode = "none", startIndex = 0, slotId = "primary" } = options;
       // startIndex を [0, tracks.length-1] に正規化。
       // 範囲外のまま history に入ると、復元時に track を取得できなくなる。
       const safeIndex = Math.min(Math.max(startIndex, 0), tracks.length - 1);
-      const queryKey = `playlist:${origin.threadId}:${tracks.map((t) => t.id).join(",")}`;
+      // queryKey には provider を含めて YouTube / internal の history 衝突を避ける
+      const queryKey = `playlist:${playlistProvider}:${origin.threadId}:${tracks.map((t) => t.id).join(",")}`;
       const s = getStore();
 
       const query: PlayerQuery = {

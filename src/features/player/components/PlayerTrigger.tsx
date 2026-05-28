@@ -54,9 +54,11 @@ export const PlayerTrigger: React.FunctionComponent<PlayerTriggerProps> = ({
   const analysis = useMemo(() => analyzeUrl(url), [url]);
   const { provider, providerId, isLive, hasDouji } = analysis;
   const isPlayable = provider !== null && providerId !== null;
-  // 連続再生は YouTube のみ対応（iOS の autoplay 制約により他プロバイダーは
-  // 自動次送りできないため、プレイリスト候補から除外する）
-  const canPlaylist = provider === "youtube";
+  // 連続再生対応プロバイダー:
+  //  - youtube  : 同一 iframe + loadVideoById で次曲遷移
+  //  - internal : 同一 <video> + src 差し替えで次曲遷移（iOS は要 user-gesture 活性化）
+  // 連続再生は同一 provider 内でのみ可（プレイヤー要素を再マウントせず使い回すため）
+  const canPlaylist = provider === "youtube" || provider === "internal";
 
   // threadId は number で受け取るが、ストアのキーは string
   const threadIdStr = String(threadId);
@@ -69,11 +71,15 @@ export const PlayerTrigger: React.FunctionComponent<PlayerTriggerProps> = ({
       false,
   );
 
-  // ---- スレッド内1個目のメディアかどうか ----
-  // 連続再生ボタンは1個目のメディアにのみ表示する
-  const isFirstMedia = usePlayerStore(
-    (s) => s.mediaListInThread[threadIdStr]?.[0]?.url === url,
-  );
+  // ---- 同一 provider 内で1個目のメディアかどうか ----
+  // 連続再生ボタンは provider グループの1個目にのみ表示する
+  // （YouTube / internal の2グループが並行存在しうる）
+  const isFirstMediaOfProvider = usePlayerStore((s) => {
+    const list = s.mediaListInThread[threadIdStr];
+    if (!list || !provider) return false;
+    const firstOfProvider = list.find((m) => m.provider === provider);
+    return firstOfProvider?.url === url;
+  });
 
   // ---- メディア登録簿への登録/解除 ----
   // ライブ配信はプレイリストに含めないので登録しない
@@ -82,7 +88,7 @@ export const PlayerTrigger: React.FunctionComponent<PlayerTriggerProps> = ({
   // 依存配列に含めても安全（参照が変わらない）。
   useEffect(() => {
     if (!isPlayable || isLive || !provider || !providerId || isSubView) return;
-    // 連続再生候補は YouTube のみ登録する
+    // 連続再生候補は YouTube または internal のみ登録する
     if (!canPlaylist) return;
     registerMedia(threadIdStr, url, provider, providerId, postNo);
     return (): void => unregisterMedia(threadIdStr, url);
@@ -121,14 +127,19 @@ export const PlayerTrigger: React.FunctionComponent<PlayerTriggerProps> = ({
       hasDouji={hasDouji}
       canPlaylist={canPlaylist}
       checked={checked}
-      isFirstMedia={isFirstMedia}
+      isFirstMediaOfProvider={isFirstMediaOfProvider}
       isSubView={isSubView}
       onToggleChecked={(): void => toggleMediaChecked(threadIdStr, url)}
       onPlaySingle={(): void => play(url, threadIdStr)}
-      onPlayPlaylist={(): void => playChecked(threadIdStr)}
+      onPlayPlaylist={(): void =>
+        playChecked(threadIdStr, { playlistProvider: provider ?? undefined })
+      }
       onPlaySingleSync={(): void => play(url, threadIdStr, { subMode: "sync" })}
       onPlayPlaylistSync={(): void =>
-        playChecked(threadIdStr, { subMode: "sync" })
+        playChecked(threadIdStr, {
+          subMode: "sync",
+          playlistProvider: provider ?? undefined,
+        })
       }
     />
   );
@@ -142,7 +153,8 @@ interface VideoTriggerPanelProps {
   hasDouji: boolean;
   canPlaylist: boolean;
   checked: boolean;
-  isFirstMedia: boolean;
+  /** 同一 provider グループ内で1個目のメディアかどうか（連続再生ボタンの表示制御） */
+  isFirstMediaOfProvider: boolean;
   isSubView?: boolean;
   onToggleChecked: () => void;
   onPlaySingle: () => void;
@@ -155,7 +167,7 @@ const VideoTriggerPanel: React.FunctionComponent<VideoTriggerPanelProps> = ({
   hasDouji,
   canPlaylist,
   checked,
-  isFirstMedia,
+  isFirstMediaOfProvider,
   isSubView,
   onToggleChecked,
   onPlaySingle,
@@ -169,7 +181,7 @@ const VideoTriggerPanel: React.FunctionComponent<VideoTriggerPanelProps> = ({
         <MdPictureInPicture className="w-7 h-5 text-primary" /> 再生
       </TriggerButton>
 
-      {!isSubView && canPlaylist && isFirstMedia && (
+      {!isSubView && canPlaylist && isFirstMediaOfProvider && (
         <TriggerButton onClick={onPlayPlaylist} title="連続再生">
           <MdFormatListBulleted className="w-7 h-5 text-primary" /> 連続再生
         </TriggerButton>
@@ -180,7 +192,7 @@ const VideoTriggerPanel: React.FunctionComponent<VideoTriggerPanelProps> = ({
           <TriggerButton onClick={onPlaySingleSync} title="同時視聴">
             <MdPictureInPicture className="w-7 h-5 text-destructive" /> 同時視聴
           </TriggerButton>
-          {!isSubView && canPlaylist && isFirstMedia && (
+          {!isSubView && canPlaylist && isFirstMediaOfProvider && (
             <TriggerButton
               onClick={onPlayPlaylistSync}
               title="連続再生+同時視聴:未実装"
