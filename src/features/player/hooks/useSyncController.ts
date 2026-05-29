@@ -43,9 +43,9 @@ const COOLDOWN = 2000;
 
 // ---- ズレのしきい値（秒、ahead = currentTime - expected） ----
 /** これ以上「早い」なら即時シーク（①） */
-const SEEK_AHEAD = 15;
+const SEEK_AHEAD = 8;
 /** これ以上「遅れ」なら即時シーク（⑥） */
-const SEEK_BEHIND = 15;
+const SEEK_BEHIND = 8;
 /** これ以上「早い」なら減速（②の下限） */
 const SLOW_THRESHOLD = 5;
 /** これ以上「遅れ」なら加速（④の下限） */
