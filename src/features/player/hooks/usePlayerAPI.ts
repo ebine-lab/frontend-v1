@@ -27,7 +27,11 @@ import type {
   Track,
 } from "../stores/playerStore";
 import { usePlayerStore } from "../stores/playerStore";
-import { detectProvider, extractProviderId } from "../utils/providerDetect";
+import {
+  detectProvider,
+  extractDoujiTime,
+  extractProviderId,
+} from "../utils/providerDetect";
 
 // ----------------------------------------------------------
 // 内部ヘルパー（モジュールレベル — レンダーに依存しない）
@@ -260,6 +264,13 @@ export function usePlayerAPI(): PlayerAPI {
     ): void => {
       const track = urlToTrack(url);
       if (!track) return;
+
+      // 同時視聴パラメータ（&douji=）があれば基準時刻を Track に付与。
+      // 実際の同期挙動は subMode === "sync" のとき useSyncController が駆動する。
+      const doujiTime = extractDoujiTime(url);
+      if (doujiTime) {
+        track.syncStartTime = doujiTime.getTime();
+      }
 
       const origin = buildOrigin(threadId, location.pathname, options.label);
       const { subMode = "none", slotId = "primary" } = options;

@@ -160,6 +160,9 @@ export const YouTubeEmbed: React.FunctionComponent<YouTubeEmbedProps> = ({
             isReadyRef.current = true;
             // ready までに providerId が変わっていたら差し替える
             syncVideo();
+            // 同時視聴の追従で設定済みの再生速度を反映（既定は等倍）
+            const rate = getStore().players[slotId].playbackRate;
+            if (rate !== 1) player?.setPlaybackRate(rate);
           },
           onStateChange: (event: YT.OnStateChangeEvent): void => {
             if (!mountedRef.current) return;
@@ -270,6 +273,17 @@ export const YouTubeEmbed: React.FunctionComponent<YouTubeEmbedProps> = ({
       },
     );
 
+    // ストア購読: playbackRate 変化に応じて再生速度を反映（同時視聴の追従）。
+    // YouTube は getAvailablePlaybackRates の離散値のみ有効で、非対応値は
+    // 「1 の方向に最も近い対応値」へ丸められる（例: 0.95→1, 1.1→1）。
+    const unsubRate = usePlayerStore.subscribe(
+      (s) => s.players[slotId].playbackRate,
+      (rate) => {
+        if (!playerRef.current) return;
+        playerRef.current.setPlaybackRate(rate);
+      },
+    );
+
     return (): void => {
       mountedRef.current = false;
       isReadyRef.current = false;
@@ -277,6 +291,7 @@ export const YouTubeEmbed: React.FunctionComponent<YouTubeEmbedProps> = ({
       stopTimeUpdate();
       unsubStatus();
       unsubSeek();
+      unsubRate();
       // playerRef.current（onReady 後）または local player（onReady 前）を破棄。
       // どちらか一方しか有効でないため ?? で fallback する。
       const p = playerRef.current ?? player;
