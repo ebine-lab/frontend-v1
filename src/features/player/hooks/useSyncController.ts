@@ -70,6 +70,7 @@ export function useSyncController(): void {
     (s) => s.players.primary.currentTrack?.syncStartTime,
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies(trackId): トラック変更時に effect スコープの mode/appliedRate/lastSeekAt をリセットするため意図的に含める
   useEffect(() => {
     // YouTube 単品の同時視聴のみ駆動
     if (subMode !== "sync") return;
