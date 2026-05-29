@@ -60,6 +60,8 @@ export interface Track {
   duration?: number;
   /** 元投稿のレス番号 */
   postNo?: number;
+  /** 同時視聴の再生基準時刻（epoch ms, UTC）。未設定 = 同時視聴対象外 */
+  syncStartTime?: number;
 }
 
 // ----------------------------------------------------------

@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useState } from "react";
 import { usePlayerAPI } from "../hooks/usePlayerAPI";
 import { usePlaylistController } from "../hooks/usePlaylistController";
+import { useSyncController } from "../hooks/useSyncController";
 import type { Track } from "../stores/playerStore";
 import { usePlayerStore } from "../stores/playerStore";
 import { MiniPlayerControls } from "./MiniPlayerControls";
@@ -83,6 +84,9 @@ export const MiniPlayer: React.FunctionComponent = () => {
 
   // 連続再生の進行制御（ブリッジ + 自動次送り + history 更新）
   usePlaylistController();
+
+  // 同時視聴（sync）の同期制御（douji 基準時刻へシーク + ドリフト補正）
+  useSyncController();
 
   const visible = usePlayerStore((s) => s.miniPlayer.visible);
   const position = usePlayerStore((s) => s.miniPlayer.position);
