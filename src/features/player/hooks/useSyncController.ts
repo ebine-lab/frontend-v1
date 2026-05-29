@@ -34,6 +34,7 @@
 
 import { useEffect } from "react";
 import { usePlayerStore } from "../stores/playerStore";
+import { getSyncedNow, primeServerTimeOffset } from "../utils/serverTime";
 
 /** 同期チェック間隔（ms）。初回シークは最大このディレイで実行される */
 const CHECK_INTERVAL = 1000;
@@ -75,6 +76,11 @@ export function useSyncController(): void {
     if (provider !== "youtube") return;
     if (syncStartTime == null) return;
 
+    // 同時視聴開始時に 1 回だけサーバー時刻オフセットを取得（PC時計ずれの補正）。
+    // モジュール側の取得済みガードにより実 fetch は 1 回に束ねられる。
+    // 取得完了までは getSyncedNow が PC時刻を返すため同期は即時に始まる。
+    void primeServerTimeOffset();
+
     // effect スコープで保持する。trackId 変化で貼り直され初期化される。
     // status を依存に含めない（seek→buffering→playing の再 effect で
     // 無限シークになるため）。
@@ -106,7 +112,7 @@ export function useSyncController(): void {
       const track = p.currentTrack;
       if (!track?.syncStartTime) return;
 
-      const expected = (Date.now() - track.syncStartTime) / 1000;
+      const expected = (getSyncedNow() - track.syncStartTime) / 1000;
       // 基準時刻がまだ未来 → 開始前なので何もしない（先頭から等倍再生）
       if (expected < 0) return;
       // 既に終了範囲なら補正しない（自然終了に委ねる）
