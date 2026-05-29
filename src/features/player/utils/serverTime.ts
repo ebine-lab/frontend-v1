@@ -46,6 +46,23 @@ function jstFieldsToEpochMs(d: Partial<TimeApiResponse>): number | null {
   if (required.some((v) => typeof v !== "number" || Number.isNaN(v))) {
     return null;
   }
+  // 値域検証。Date.UTC は範囲外の値を黙って正規化（例: month=13 → 翌年）
+  // してしまうため、不正なペイロードを誤ったオフセットに採用しないよう弾く。
+  const inRange =
+    (year as number) >= 1970 &&
+    (month as number) >= 1 &&
+    (month as number) <= 12 &&
+    (day as number) >= 1 &&
+    (day as number) <= 31 &&
+    (hour as number) >= 0 &&
+    (hour as number) <= 23 &&
+    (minute as number) >= 0 &&
+    (minute as number) <= 59 &&
+    (seconds as number) >= 0 &&
+    (seconds as number) <= 59;
+  if (!inRange) {
+    return null;
+  }
   const ms = Date.UTC(
     year as number,
     (month as number) - 1,

@@ -111,7 +111,9 @@ export function useSyncController(): void {
       if (p.status !== "playing") return;
 
       const track = p.currentTrack;
-      if (!track?.syncStartTime) return;
+      // syncStartTime は epoch ms。0（=1970）も有効な基準時刻なので
+      // falsy 判定ではなく null/undefined 判定で未設定を見分ける。
+      if (track?.syncStartTime == null) return;
 
       const expected = (getSyncedNow() - track.syncStartTime) / 1000;
       // 基準時刻がまだ未来 → 開始前なので何もしない（先頭から等倍再生）
