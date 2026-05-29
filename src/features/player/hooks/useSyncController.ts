@@ -13,13 +13,13 @@
 //   ② +5 〜 +15秒（早い）  : 0.75倍速で減速し追いつかれるのを待つ
 //   ③ ±5秒                 : 何もしない（デッドゾーン）
 //   ④ -5 〜 -15秒（遅れ）  : 1.25倍速で加速し追いつく
-//   ⑤ -15 〜 -30秒（遅れ） : 1.25倍速で加速し追いつく
-//   ⑥ ahead <= -30秒       : 目標へ即時シーク
+//   ⑥ ahead <= -15秒       : 目標へ即時シーク
 //
-//   速度モードはヒステリシスを持つ。一度入ると③へ戻っても持続し、
-//   より極端な状態に達したときだけ放棄する:
-//     ② は ① で放棄、④ は ⑤⑥ で放棄、⑤ は ⑥ で放棄。
-//   ④⑤ は同一速度（1.25）だが、放棄境界が異なるためモードを区別する。
+//   ゼロクロス強制終了（モード分岐前）:
+//     ahead > 0 なら加速モードを終了、ahead < 0 なら減速モードを終了する。
+//     目標を跨いだ瞬間に逆方向の補正を切るため、目標付近で等倍に収束し
+//     0.75 ↔ 1.25 の振動を起こさない。デッドゾーンでの速度持続は、
+//     補正中と同じ符号側にいる間だけ働く。
 //
 // 速度値について:
 //   YouTube は getAvailablePlaybackRates の離散値（0.25/0.5/0.75/1/1.25/…）
@@ -44,22 +44,19 @@ const COOLDOWN = 2000;
 /** これ以上「早い」なら即時シーク（①） */
 const SEEK_AHEAD = 15;
 /** これ以上「遅れ」なら即時シーク（⑥） */
-const SEEK_BEHIND = 30;
+const SEEK_BEHIND = 15;
 /** これ以上「早い」なら減速（②の下限） */
 const SLOW_THRESHOLD = 5;
 /** これ以上「遅れ」なら加速（④の下限） */
 const FAST_THRESHOLD = 5;
-/** これ以上「遅れ」なら強めの加速モード（⑤の下限） */
-const FAST_STRONG_THRESHOLD = 15;
 
-type SyncMode = "none" | "slow" | "fast11" | "fast12";
+type SyncMode = "none" | "slow" | "fast";
 
-/** 各モードの再生速度（ユーザー指定: ② 0.75 / ④⑤ 1.25） */
+/** 各モードの再生速度（ユーザー指定: ② 0.75 / ④ 1.25） */
 const RATE: Record<SyncMode, number> = {
   none: 1,
   slow: 0.75,
-  fast11: 1.25,
-  fast12: 1.25,
+  fast: 1.25,
 };
 
 export function useSyncController(): void {
@@ -117,21 +114,26 @@ export function useSyncController(): void {
 
       const ahead = p.currentTime - expected;
 
+      // ゼロクロス強制終了（モード分岐前）。目標を跨いだら逆方向の補正を切る。
+      if (ahead > 0 && mode === "fast") mode = "none";
+      if (ahead < 0 && mode === "slow") mode = "none";
+
+      // 補正モードの決定
+      let target: SyncMode | "seek";
       if (ahead >= SEEK_AHEAD || ahead <= -SEEK_BEHIND) {
-        // ①⑥: 即時シーク
-        doSeek(expected);
+        target = "seek"; // ①⑥
       } else if (ahead >= SLOW_THRESHOLD) {
-        // ②: 早すぎ → 減速
-        applyRate("slow");
-      } else if (ahead <= -FAST_STRONG_THRESHOLD) {
-        // ⑤: 大きく遅れ → 強めの加速
-        applyRate("fast12");
+        target = "slow"; // ②
       } else if (ahead <= -FAST_THRESHOLD) {
-        // ④: 遅れ → 加速（⑤から降りてきた場合は fast12 を維持）
-        applyRate(mode === "fast12" ? "fast12" : "fast11");
-      } else if (mode !== "none") {
-        // ③: デッドゾーン。速度モード作動中なら持続（ヒステリシス）
-        applyRate(mode);
+        target = "fast"; // ④
+      } else {
+        target = mode; // ③ デッドゾーン: 同符号側にいる間だけ持続
+      }
+
+      if (target === "seek") {
+        doSeek(expected);
+      } else {
+        applyRate(target);
       }
     };
 
