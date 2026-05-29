@@ -87,6 +87,8 @@ export interface PlayerInstance {
   /** 音量 0-1 */
   volume: number;
   muted: boolean;
+  /** 再生速度（1 = 等倍）。同時視聴の追従でアダプターに反映される */
+  playbackRate: number;
   /** シーク要求（null = 要求なし）。アダプターが消費後に clearSeekTarget する */
   seekTarget: number | null;
 }
@@ -208,6 +210,7 @@ export interface PlayerStore {
   seek: (slotId: SlotId, time: number) => void;
   setVolume: (slotId: SlotId, volume: number) => void;
   setMuted: (slotId: SlotId, muted: boolean) => void;
+  setPlaybackRate: (slotId: SlotId, rate: number) => void;
   setStatus: (slotId: SlotId, status: PlaybackStatus) => void;
   updateTime: (slotId: SlotId, time: number) => void;
   requestSeek: (slotId: SlotId, time: number) => void;
@@ -273,6 +276,7 @@ const createInitialPlayerInstance = (slotId: SlotId): PlayerInstance => ({
   currentTrack: null,
   currentTime: 0,
   volume: 1,
+  playbackRate: 1,
   seekTarget: null,
   muted: false,
 });
@@ -373,6 +377,14 @@ export const usePlayerStore = create<PlayerStore>()(
             players: {
               ...state.players,
               [slotId]: { ...state.players[slotId], muted },
+            },
+          })),
+
+        setPlaybackRate: (slotId: SlotId, rate: number) =>
+          set((state) => ({
+            players: {
+              ...state.players,
+              [slotId]: { ...state.players[slotId], playbackRate: rate },
             },
           })),
 

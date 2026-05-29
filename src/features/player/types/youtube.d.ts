@@ -63,6 +63,8 @@ declare namespace YT {
     getPlayerState(): PlayerState;
     getCurrentTime(): number;
     getDuration(): number;
+    getPlaybackRate(): number;
+    setPlaybackRate(suggestedRate: number): void;
     getVolume(): number;
     setVolume(volume: number): void;
     isMuted(): boolean;
